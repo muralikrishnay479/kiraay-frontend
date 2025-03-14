@@ -1,0 +1,32 @@
+/* Light Theme */
+.light-theme .rdrCalendarWrapper {
+    background-color: #ffffff !important;
+    color: black !important;
+    border-radius: 8px;
+  }
+  
+  .light-theme .rdrDayNumber span {
+    color: black !important;
+  }
+  
+  .light-theme .rdrDayDisabled {
+    background-color: #f0f0f0 !important;
+    color: #888 !important;
+  }
+  
+  /* Dark Theme */
+  .dark-theme .rdrCalendarWrapper {
+    background-color: #121212 !important;
+    color: white !important;
+    border-radius: 8px;
+  }
+  
+  .dark-theme .rdrDayNumber span {
+    color: white !important;
+  }
+  
+  .dark-theme .rdrDayDisabled {
+    background-color: #444 !important;
+    color: #bbb !important;
+  }
+  
