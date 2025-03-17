@@ -7,7 +7,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormLabel from '@mui/material/FormLabel';
 import FormControl from '@mui/material/FormControl';
-import Link from '@mui/material/Link'; // Import MUI Link
+import Link from '@mui/material/Link'; // MUI Link
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
@@ -21,8 +21,9 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import PhoneIcon from '@mui/icons-material/Phone';
 import LockIcon from '@mui/icons-material/Lock';
 import axios from 'axios';
-import { useNavigate, Link as RouterLink } from 'react-router-dom'; // Import RouterLink
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 // Styled Components
 const GlassCard = styled(MuiCard)(({ theme }) => ({
   background: alpha(theme.palette.background.paper, 0.9),
@@ -40,7 +41,7 @@ const GlassCard = styled(MuiCard)(({ theme }) => ({
 }));
 
 const SignInContainer = styled(Stack)(({ theme }) => ({
-  minHeight: '100%',
+  minHeight: '100vh', // Full height for centering
   padding: theme.spacing(2),
   [theme.breakpoints.up('sm')]: {
     padding: theme.spacing(4),
@@ -118,38 +119,43 @@ function SignIn() {
     event.preventDefault();
     const phoneValidation = validatePhoneNumber(phoneNumber);
     const passwordValidation = validatePassword(password);
-  
+
     setPhoneError(phoneValidation);
     setPasswordError(passwordValidation);
     setFormError('');
-  
+
     if (!phoneValidation && !passwordValidation) {
       try {
         const fullPhoneNumber = `${countryCode}${phoneNumber}`;
-        const response = await axios.post('http://localhost:8000/api/sign-in/', {
-          phone_number: fullPhoneNumber,
-          password: password,
-        });
-  
-        const { access, refresh, user_id } = response.data;
-        localStorage.setItem('access_token', access);
-        localStorage.setItem('refresh_token', refresh);
-        localStorage.setItem('user_id', user_id);
-  
-        console.log('Sign-in successful:', { access, refresh, user_id });
-        navigate('/');
+        const response = await axios.post(
+          `${BASE_URL}/api/users/login`, // Backend URL
+          {
+            phone: fullPhoneNumber, // Matches backend expected field
+            password: password,
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        const { access_token } = response.data; // Backend returns "access_token"
+        localStorage.setItem('access_token', access_token);
+
+        console.log('Sign-in successful:', { access_token });
+        navigate('/'); // Redirect to home or dashboard
       } catch (error) {
         if (error.response) {
-          // Extract error details
-          const errorMessage = error.response.data?.detail || "Something went wrong. Please try again.";
+          const errorMessage = error.response.data?.message || 'Invalid phone number or password';
           setFormError(errorMessage);
         } else {
-          setFormError("Network error. Please check your connection.");
+          setFormError('Network error. Please check your connection.');
         }
       }
     }
   };
-  
+
   return (
     <>
       <CssBaseline enableColorScheme />
@@ -182,8 +188,8 @@ function SignIn() {
                   onChange={(e) => setCountryCode(e.target.value)}
                   sx={{ width: '100px' }}
                 >
-               
                   <MenuItem value="+91">+91</MenuItem>
+                  {/* Add more country codes if needed */}
                 </StyledSelect>
                 <StyledTextField
                   error={!!phoneError}
@@ -289,7 +295,6 @@ function SignIn() {
               Sign In
             </Button>
 
-            {/* Using MUI Link for "Forgot your password?" */}
             <Link
               href="#"
               variant="body2"
@@ -298,7 +303,6 @@ function SignIn() {
               Forgot your password?
             </Link>
 
-            {/* Using RouterLink for "Sign Up" */}
             <Typography align="center" sx={{ color: 'text.secondary' }}>
               Don’t have an account?{' '}
               <RouterLink

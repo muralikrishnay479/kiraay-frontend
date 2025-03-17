@@ -24,15 +24,14 @@ import LockIcon from "@mui/icons-material/Lock";
 import axios from "axios";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://kiraay-backend.onrender.com";
 
 // Styled Components
 const GlassCard = styled(MuiCard)(({ theme }) => ({
   background: alpha(theme.palette.background.paper, 0.9),
   backdropFilter: "blur(12px)",
   border: `1px solid ${
-    theme.palette.mode === "light"
-      ? "rgba(255, 255, 255, 0.2)"
-      : "rgba(255, 255, 255, 0.1)"
+    theme.palette.mode === "light" ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.1)"
   }`,
   boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
   borderRadius: 16,
@@ -46,7 +45,7 @@ const GlassCard = styled(MuiCard)(({ theme }) => ({
 }));
 
 const SignUpContainer = styled(Stack)(({ theme }) => ({
-  minHeight: "100%",
+  minHeight: "100vh", // Changed to full height for consistency with SignIn
   padding: theme.spacing(2),
   [theme.breakpoints.up("sm")]: {
     padding: theme.spacing(4),
@@ -105,23 +104,21 @@ function SignUp() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const [agreeTerms, setAgreeTerms] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false); // Added loading state
 
   const handleClickShowPassword = () => setShowPassword((prev) => !prev);
-  const handleClickShowConfirmPassword = () =>
-    setShowConfirmPassword((prev) => !prev);
+  const handleClickShowConfirmPassword = () => setShowConfirmPassword((prev) => !prev);
   const handleMouseDownPassword = (event) => event.preventDefault();
 
   // Validation Functions
   const validateFullName = (value) => {
     const nameRegex = /^[a-zA-Z\s]{2,}$/;
-    return nameRegex.test(value)
-      ? ""
-      : "Full name must be at least 2 letters (no numbers)";
+    return nameRegex.test(value) ? "" : "Full name must be at least 2 letters (no numbers)";
   };
 
   const validatePhoneNumber = (value) => {
-    const phoneRegex = /^\d{0,10}$/;
-    return phoneRegex.test(value) ? "" : "Phone number must be 10 digits";
+    const phoneRegex = /^\d{10}$/; // Stricter validation for exactly 10 digits
+    return phoneRegex.test(value) ? "" : "Phone number must be exactly 10 digits";
   };
 
   const validatePassword = (value) => {
@@ -167,19 +164,18 @@ function SignUp() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    console.log('Form submitted');
-  
+
     const fullNameValidation = validateFullName(fullName);
     const phoneValidation = validatePhoneNumber(phoneNumber);
     const passwordValidation = validatePassword(password);
     const confirmPasswordValidation = validateConfirmPassword(confirmPassword, password);
-  
+
     setFullNameError(fullNameValidation);
     setPhoneError(phoneValidation);
     setPasswordError(passwordValidation);
     setConfirmPasswordError(confirmPasswordValidation);
-    setFormError('');
-  
+    setFormError("");
+
     if (
       !fullNameValidation &&
       !phoneValidation &&
@@ -187,33 +183,43 @@ function SignUp() {
       !confirmPasswordValidation &&
       agreeTerms
     ) {
+      setIsLoading(true);
       try {
         const fullPhoneNumber = `${countryCode}${phoneNumber}`;
-        const response = await axios.post('http://localhost:8000/api/sign-up/', {
-          full_name: fullName,
-          phone_number: fullPhoneNumber,
-          password: password,
-        });
-  
-        console.log('Sign-up successful:', response.data);
-        navigate('/sign-in');
-      } catch (error) {
-        // Check for specific "account already exists" error
-        let errorMessage = 'Sign-up failed. Please try again.';
-        if (error.response) {
-          if (error.response.status === 400 && error.response.data?.detail === "user with this phone number already exists.") {
-            errorMessage = 'Account already exists with this phone number.';
-          } else if (error.response.data?.phone_number) {
-            errorMessage = error.response.data.phone_number; // e.g., "This phone number is already registered"
-          } else {
-            errorMessage = error.response.data?.detail || errorMessage;
+        const response = await axios.post(
+          `${BASE_URL}/api/users/register`, // Updated to match your backend route
+          {
+            username: fullName, // Matches backend registerUser field
+            phone: fullPhoneNumber, // Matches backend registerUser field
+            password: password,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
           }
+        );
+
+        console.log("Sign-up successful:", response.data);
+        navigate("/sign-in"); // Redirect to sign-in page
+      } catch (error) {
+        let errorMessage = "Sign-up failed. Please try again.";
+        if (error.response) {
+          if (error.response.status === 400 && error.response.data?.message === "User already registered!") {
+            errorMessage = "An account with this phone number already exists.";
+          } else {
+            errorMessage = error.response.data?.message || errorMessage;
+          }
+        } else {
+          errorMessage = "Network error. Please check your connection.";
         }
         setFormError(errorMessage);
-        console.error('Sign-up error:', error);
+        console.error("Sign-up error:", error);
+      } finally {
+        setIsLoading(false);
       }
     } else if (!agreeTerms) {
-      setFormError('Please agree to the terms and conditions.');
+      setFormError("Please agree to the terms and conditions.");
     }
   };
 
@@ -236,11 +242,7 @@ function SignUp() {
           </Typography>
 
           {formError && (
-            <Typography
-              variant="body2"
-              align="center"
-              sx={{ color: "error.main", mb: 2 }}
-            >
+            <Typography variant="body2" align="center" sx={{ color: "error.main", mb: 2 }}>
               {formError}
             </Typography>
           )}
@@ -277,9 +279,7 @@ function SignUp() {
             </FormControl>
 
             <FormControl>
-              <FormLabel sx={{ color: "text.secondary" }}>
-                Phone Number
-              </FormLabel>
+              <FormLabel sx={{ color: "text.secondary" }}>Phone Number</FormLabel>
               <Box sx={{ display: "flex", gap: 2 }}>
                 <StyledSelect
                   value={countryCode}
@@ -287,6 +287,8 @@ function SignUp() {
                   sx={{ width: "100px" }}
                 >
                   <MenuItem value="+91">+91</MenuItem>
+                  <MenuItem value="+1">+1</MenuItem>
+                  <MenuItem value="+44">+44</MenuItem>
                 </StyledSelect>
                 <StyledTextField
                   error={!!phoneError}
@@ -310,7 +312,7 @@ function SignUp() {
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <PhoneIcon sx={{ color: "transprent" }} />
+                        <PhoneIcon sx={{ color: "text.secondary" }} /> {/* Fixed typo */}
                       </InputAdornment>
                     ),
                   }}
@@ -357,9 +359,7 @@ function SignUp() {
             </FormControl>
 
             <FormControl>
-              <FormLabel sx={{ color: "text.secondary" }}>
-                Confirm Password
-              </FormLabel>
+              <FormLabel sx={{ color: "text.secondary" }}>Confirm Password</FormLabel>
               <StyledTextField
                 error={!!confirmPasswordError}
                 helperText={confirmPasswordError}
@@ -388,11 +388,7 @@ function SignUp() {
                         edge="end"
                         sx={{ color: "text.secondary" }}
                       >
-                        {showConfirmPassword ? (
-                          <VisibilityOff />
-                        ) : (
-                          <Visibility />
-                        )}
+                        {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
                       </IconButton>
                     </InputAdornment>
                   ),
@@ -427,9 +423,10 @@ function SignUp() {
             />
 
             <Button
-              type="submit" // Explicitly set as submit to trigger onSubmit
+              type="submit"
               fullWidth
               variant="contained"
+              disabled={isLoading} // Disable button while loading
               sx={{
                 py: 1.5,
                 borderRadius: 12,
@@ -445,7 +442,7 @@ function SignUp() {
                 transition: "all 0.3s ease",
               }}
             >
-              Sign Up
+              {isLoading ? "Signing Up..." : "Sign Up"}
             </Button>
 
             <Typography align="center" sx={{ color: "text.secondary" }}>
@@ -453,9 +450,7 @@ function SignUp() {
               <RouterLink
                 to="/sign-in"
                 style={{ color: "#007bff", textDecoration: "none" }}
-                onMouseOver={(e) =>
-                  (e.target.style.textDecoration = "underline")
-                }
+                onMouseOver={(e) => (e.target.style.textDecoration = "underline")}
                 onMouseOut={(e) => (e.target.style.textDecoration = "none")}
               >
                 Sign In
